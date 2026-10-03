@@ -1,0 +1,16 @@
+; {{ ansible_managed }}
+$TTL {{ dns_default_ttl }}
+@   IN  SOA {{ dns_nameservers[0] }}. {{ dns_admin }}. (
+            {{ dns_serial }} ; serial
+            3600       ; refresh
+            900        ; retry
+            604800     ; expire
+            300 )      ; negative cache TTL
+;
+{% for ns in dns_nameservers %}
+@   IN  NS  {{ ns }}.
+{% endfor %}
+;
+{% for r in zone.records %}
+{{ "%-18s" | format(r.name) }} IN  {{ "%-5s" | format(r.type | default('A')) }} {{ r.value }}
+{% endfor %}

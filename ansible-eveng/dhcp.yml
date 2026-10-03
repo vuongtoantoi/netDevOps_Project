@@ -1,0 +1,54 @@
+---
+- name: Cấu hình DHCP server (DHCP-VCB)
+  hosts: dhcp_servers
+  become: true
+
+  tasks:
+    - name: Cài isc-dhcp-server
+      ansible.builtin.apt:
+        name: isc-dhcp-server
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: manage_packages | bool
+
+    - name: Chỉ định interface phục vụ DHCP
+      ansible.builtin.lineinfile:
+        path: /etc/default/isc-dhcp-server
+        regexp: "^INTERFACESv4="
+        line: 'INTERFACESv4="{{ dhcp_interface }}"'
+      notify: Restart isc-dhcp-server
+
+    - name: Render /etc/dhcp/dhcpd.conf từ template
+      ansible.builtin.template:
+        src: dhcpd.conf.j2
+        dest: /etc/dhcp/dhcpd.conf
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+        validate: "dhcpd -t -cf %s"
+      notify: Restart isc-dhcp-server
+
+    - name: Chạy các handler đang chờ
+      ansible.builtin.meta: flush_handlers
+
+    - name: Bật service khi boot và đảm bảo đang chạy
+      ansible.builtin.service:
+        name: isc-dhcp-server
+        state: started
+        enabled: true
+
+    - name: Kiểm tra service thực sự active
+      ansible.builtin.command: systemctl is-active isc-dhcp-server
+      register: dhcp_active
+      until: dhcp_active.stdout == "active"
+      retries: 3
+      delay: 2
+      changed_when: false
+
+  handlers:
+    - name: Restart isc-dhcp-server
+      ansible.builtin.service:
+        name: isc-dhcp-server
+        state: restarted

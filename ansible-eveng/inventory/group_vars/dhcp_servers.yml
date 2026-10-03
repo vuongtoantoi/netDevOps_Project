@@ -1,0 +1,38 @@
+---
+# Interface of DHCP server to HN-DATACENTER
+dhcp_interface: ens3
+
+dhcp_domain: "{{ domain_name }}"
+dhcp_default_lease: 3600
+dhcp_max_lease: 7200
+
+dhcp_dns_servers:
+  - "{{ hostvars['dns-ftp'].lan_ip }}"
+dhcp_ntp_servers:
+  - "{{ hostvars['ntp-syslog-tftp'].lan_ip }}"
+
+dhcp_subnets:
+  - name: VCB-DC (subnet cua chinh DHCP server, khong cap phat)
+    network: 10.10.10.0
+    netmask: 255.255.255.0
+  - name: HN-OFFICE-IT
+    network: 10.10.20.0
+    netmask: 255.255.255.0
+    gateway: 10.10.20.1
+    range_start: 10.10.20.100
+    range_end: 10.10.20.200
+  - name: HN-OFFICE-ACC
+    network: 10.10.21.0
+    netmask: 255.255.255.0
+    gateway: 10.10.21.1
+    range_start: 10.10.21.100
+    range_end: 10.10.21.200
+  - name: HN-OFFICE-GUEST
+    network: 10.10.22.0
+    netmask: 255.255.255.0
+    gateway: 10.10.22.1
+    range_start: 10.10.22.100
+    range_end: 10.10.22.200
+
+dhcp_reservations: []
+#  - { name: it-hn, mac: "aa:bb:cc:dd:ee:01", ip: 10.10.20.50 }

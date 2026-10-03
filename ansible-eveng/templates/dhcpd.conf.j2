@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Sinh tu templates/dhcpd.conf.j2 - KHONG sua tay tren server
+
+authoritative;
+
+default-lease-time {{ dhcp_default_lease }};
+max-lease-time {{ dhcp_max_lease }};
+
+option domain-name "{{ dhcp_domain }}";
+option domain-name-servers {{ dhcp_dns_servers | join(', ') }};
+{% if dhcp_ntp_servers | length > 0 %}
+option ntp-servers {{ dhcp_ntp_servers | join(', ') }};
+{% endif %}
+
+log-facility local7;
+{% for s in dhcp_subnets %}
+
+# {{ s.name }}
+subnet {{ s.network }} netmask {{ s.netmask }} {
+{% if s.range_start is defined %}
+  range {{ s.range_start }} {{ s.range_end }};
+  option routers {{ s.gateway }};
+{% endif %}
+}
+{% endfor %}
+{% for h in dhcp_reservations %}
+
+host {{ h.name }} {
+  hardware ethernet {{ h.mac }};
+  fixed-address {{ h.ip }};
+}
+{% endfor %}

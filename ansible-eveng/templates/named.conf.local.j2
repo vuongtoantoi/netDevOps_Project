@@ -1,0 +1,9 @@
+// {{ ansible_managed }}
+{% for zone in dns_zones %}
+zone "{{ zone.name }}" {
+    type master;
+    file "{{ dns_zone_dir }}/db.{{ zone.name }}";
+    allow-transfer { none; };
+};
+
+{% endfor %}

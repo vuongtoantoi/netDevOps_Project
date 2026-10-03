@@ -1,0 +1,29 @@
+---
+dns_zone_dir: /etc/bind/zones
+
+# PHẢI tăng số này mỗi lần sửa zone (YYYYMMDDNN), nếu không secondary/cache không cập nhật
+dns_serial: 2026092801
+dns_default_ttl: 3600
+dns_admin: "hostmaster.{{ domain_name }}"
+dns_nameservers:
+  - "ns1.{{ domain_name }}"
+
+dns_zones:
+  - name: "{{ domain_name }}"
+    records:
+      - { name: ns1,             value: "{{ hostvars['dns-ftp'].lan_ip }}" }
+      - { name: dhcp-vcb,        value: "{{ hostvars['dhcp-vcb'].lan_ip }}" }
+      - { name: ntp-syslog-tftp, value: "{{ hostvars['ntp-syslog-tftp'].lan_ip }}" }
+      - { name: in-vcb,          value: "{{ hostvars['in-vcb'].lan_ip }}" }
+      - { name: fpt-vn,          value: "{{ hostvars['fpt-vn'].lan_ip }}" }
+      - { name: www,             value: "{{ hostvars['vcb-web'].lan_ip }}" }
+      - { name: ntp,             type: CNAME, value: ntp-syslog-tftp }
+      - { name: syslog,          type: CNAME, value: ntp-syslog-tftp }
+      - { name: tftp,            type: CNAME, value: ntp-syslog-tftp }
+
+  # Reverse zone cho subnet VCB Data Center 10.10.10.0/24
+  - name: 10.10.10.in-addr.arpa
+    records:
+      - { name: "10", type: PTR, value: "dhcp-vcb.{{ domain_name }}." }
+      - { name: "11", type: PTR, value: "ntp-syslog-tftp.{{ domain_name }}." }
+      - { name: "12", type: PTR, value: "in-vcb.{{ domain_name }}." }

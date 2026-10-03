@@ -1,0 +1,768 @@
+devices:
+  - name: FPT_Telecom
+    host: 172.16.184.10
+    username: admin
+    password: cisco123
+    enable_password: cisco123
+    protocol: ssh
+    port: 22
+    interfaces:
+      - e1/0:
+          description: "to Internet-users"
+          ip: 111.111.111.1
+          netmask: 255.255.255.0
+          shutdown: false
+      - f0/0:
+          description: "to FPT Lan"
+          ip: 222.222.222.1
+          netmask: 255.255.255.0
+          shutdown: false
+      - f2/0:
+          description: "to HCM GW"
+          ip: 200.0.0.5
+          netmask: 255.255.255.252
+          shutdown: false
+      - f3/0:
+          description: "to HN GW"
+          ip: 200.0.0.1
+          netmask: 255.255.255.252
+          shutdown: false
+
+    static:
+      - destination: 200.200.10.0
+        netmask: 255.255.255.240
+        next_hop: 200.0.0.2
+
+      - destination: 200.200.10.16
+        netmask: 255.255.255.240
+        next_hop: 200.0.0.6
+
+      # can them default-routing.
+
+    acls:
+      - name: PublicIP_cntion_only
+        type: standard
+        entries:
+          - sequence: 10
+            action: permit
+            source: 172.16.11.0
+            wildcard: 0.0.0.255
+    interfaces_acls:
+      - interface: f0/0
+        direction: out
+        acl: PublicIP_cntion_only
+  #======================================#
+
+  - name: HCM_GW
+    host: 172.16.184.11
+    username: admin
+    password: cisco123
+    enable_password: cisco123
+    protocol: ssh
+    port: 22
+    interfaces:
+      - fa1/0:
+          description: "to FPT Telecom"
+          ip: 200.0.0.6
+          netmask: 255.255.255.252
+          shutdown: false
+          nat_role: outside
+      - fa0/0:
+          description: "to VCB HCM"
+          shutdown: false
+          nat_role: inside
+          ip_helper_add: 172.16.10.5
+      - fa0/0.210:
+          encap_dot1q_vlan: 210
+          ip: 172.16.210.1
+          netmask: 255.255.255.0
+          shutdown: false
+      - fa0/0.220:
+          encap_dot1q_vlan: 220
+          ip: 172.16.220.1
+          netmask: 255.255.255.0
+          shutdown: false
+      - fa0/0.250:
+          encap_dot1q_vlan: 250
+          ip: 172.16.250.1
+          netmask: 255.255.255.0
+          shutdown: false
+    tunnel:
+      - name: tunnel0
+        type: gre
+        source: fa1/0
+        destination: 200.0.0.2
+        ip: 10.0.255.14
+        netmask: 255.255.255.252
+        shutdown: false
+    static:
+      - destination: 0.0.0.0
+        netmask: 0.0.0.0
+        next_hop: 200.0.0.5
+
+      - destination: 172.16.10.0
+        netmask: 255.255.255.0
+        next_hop: 10.0.255.13
+
+    nat:
+      enabled: true
+
+      pools:
+        - name: HCM_POOL
+          start_ip: 200.200.10.17
+          end_ip: 200.200.10.30
+          netmask: 255.255.255.240
+
+      rules:
+        - type: dynamic
+          acl: HCM_TO_INTERNET
+          pool: HCM_POOL
+          overload: false
+
+    acls:
+      - name: HCM_TO_INTERNET
+        type: extended
+        entries:
+          - sequence: 10
+            action: permit
+            protocol: ip
+            source: 172.16.210.0
+            wildcard: 0.0.0.255
+            destination: any
+          - sequence: 20
+            action: permit
+            protocol: ip
+            source: 172.16.220.0
+            wildcard: 0.0.0.255
+            destination: any
+          - sequence: 30
+            action: permit
+            protocol: ip
+            source: 172.16.250.0
+            wildcard: 0.0.0.255
+            destination: any
+    interfaces_acls:
+      - interface: fa0/0
+        direction: in
+        acl: HCM_TO_INTERNET
+    dhcp:
+      enabled: true
+      pools:
+        - name: POOL_210
+          network: 172.16.210.0
+          netmask: 255.255.255.0
+          ip_default_gateway: 172.16.210.10
+          dns_server: 222.222.222.223
+          excluded_add:
+            - 172.16.210.1
+            - 172.16.210.2
+            - 172.16.210.10
+        - name: POOL_220
+          network: 172.16.220.0
+          netmask: 255.255.255.0
+          ip_default_gateway: 172.16.220.10
+          dns_server: 222.222.222.223
+          excluded_add:
+            - 172.16.220.1
+            - 172.16.220.2
+            - 172.16.220.10
+        - name: POOL_250
+          network: 172.16.250.0
+          netmask: 255.255.255.0
+          ip_default_gateway: 172.16.250.10
+          dns_server: 222.222.222.223
+          excluded_add:
+            - 172.16.250.1
+            - 172.16.250.2
+            - 172.16.250.10
+
+  #======================================#
+
+  - name: HN_GW
+    host: 172.16.184.12
+    username: admin
+    password: cisco123
+    enable_password: cisco123
+    protocol: ssh
+    port: 22
+    interfaces:
+      - fa0/0:
+          description: "to VCB PUBLIC"
+          ip: 172.16.11.1
+          netmask: 255.255.255.0
+          nat_role: inside
+          shutdown: false
+      - fa1/0:
+          description: "to FPT Telecom"
+          ip: 200.0.0.2
+          netmask: 255.255.255.252
+          nat_role: outside
+          shutdown: false
+      - fa2/0:
+          description: "to HN_OFFICE"
+          ip: 10.0.255.1
+          netmask: 255.255.255.252
+          nat_role: inside
+          ip_helper_add: 172.16.10.5
+          shutdown: false
+      - fa3/0:
+          description: "to HN DATACENTER"
+          ip: 10.0.255.5
+          netmask: 255.255.255.252
+          nat_role: inside
+          shutdown: false
+    tunnel:
+      - name: tunnel0
+        type: gre
+        source: fa1/0
+        destination: 200.0.0.6
+        ip: 10.0.255.13
+        netmask: 255.255.255.252
+        shutdown: false
+    static:
+      - destination: 0.0.0.0
+        netmask: 0.0.0.0
+        next_hop: 200.0.0.1
+
+      - destination: 172.16.210.0
+        netmask: 255.255.255.0
+        next_hop: 10.0.255.14
+      - destination: 172.16.220.0
+        netmask: 255.255.255.0
+        next_hop: 10.0.255.14
+      - destination: 172.16.250.0
+        netmask: 255.255.255.0
+        next_hop: 10.0.255.14
+    ospf:
+      enabled: true
+      process_id: 1
+
+      networks:
+        - network: 200.0.0.0
+          wildcard: 0.0.0.3
+          area: 0
+        - network: 10.0.255.0
+          wildcard: 0.0.0.3
+          area: 0
+        - network: 10.0.255.4
+          wildcard: 0.0.0.3
+          area: 0
+        - network: 172.16.11.0
+          wildcard: 0.0.0.255
+          area: 0
+    nat:
+      enabled: true
+      rules:
+        - type: static
+          inside_local: 172.16.11.10
+          inside_global: 200.200.10.1
+          overload: false
+
+        - type: pat
+          acl: HN_TO_INTERNET
+          inside_global: 200.0.0.2
+          overload: true
+    acls:
+      - name: HN_TO_INTERNET
+        type: extended
+        entries:
+          - sequence: 10
+            action: permit
+            protocol: ip
+            source: 172.16.110.0
+            wildcard: 0.0.0.255
+            destination: any
+          - sequence: 20
+            action: permit
+            protocol: ip
+            source: 172.16.120.0
+            wildcard: 0.0.0.255
+            destination: any
+          - sequence: 30
+            action: permit
+            protocol: ip
+            source: 172.16.150.0
+            wildcard: 0.0.0.255
+            destination: any
+      - name: FOR_vcb.com.vn
+        type: extended
+        entries:
+          - sequence: 10
+            action: permit
+            protocol: tcp
+            source: any
+            destination: 172.16.11.10
+            destination_port: 80
+          - sequence: 11
+            action: permit
+            protocol: tcp
+            source: any
+            destination: 172.16.11.10
+            destination_port: 443
+          - sequence: 20
+            action: permit
+            protocol: icmp
+            source: any
+            destination: 172.16.11.10
+      #- name: Managed_IT
+
+    interfaces_acls:
+      - interface: fa0/0
+        direction: out
+        acl: FOR_vcb.com.vn
+
+    ntp:
+      enabled: true
+      servers:
+        - 172.16.184.128
+
+    syslog:
+      enabled: true
+      servers:
+        - 172.16.184.128
+      level: informational
+
+    tftp:
+      server: 172.16.184.128
+      backup_config: true
+      restore_config: false
+    snmp:
+      enabled: true
+      community: "netlab-ro"
+      permission: RO # hoặc RW
+      location: "VCB_HANOI"
+      contact: "admin@vcb.com.vn"
+  #========================================#
+
+  - name: HCM-SW
+    host: 172.16.184.51
+    username: admin
+    password: cisco123
+    type: cisco_ios
+    port: 22
+    management:
+      ip: 172.16.184.51
+    vlans:
+      - 210: IT
+      - 220: ACC
+      - 250: Guest
+    interfaces:
+      - e0/1:
+          switchport_mode: access
+          switchport_access_vlan: 210
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+      - e0/2:
+          switchport_mode: access
+          switchport_access_vlan: 220
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+      - e0/3:
+          switchport_mode: access
+          switchport_access_vlan: 250
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+  - name: HN-DMZ
+    host: 172.16.184.54
+    username: admin
+    password: cisco123
+    type: cisco_ios
+    port: 22
+    ip_default_gateway: 172.16.11.1
+    vlans:
+      - 10: Private_server
+      - 110: IT
+      - 120: ACC
+      - 150: Guest
+      - 190: Management
+    ntp:
+      enabled: true
+      servers:
+        - 172.16.184.128
+
+    syslog:
+      enabled: true
+      servers:
+        - 172.16.184.128
+      level: informational
+
+    tftp:
+      server: 172.16.184.128
+      backup_config: true
+      restore_config: false
+    snmp:
+      enabled: true
+      community: "netlab-ro"
+      permission: RO # hoặc RW
+      location: "VCB_HANOI"
+      contact: "admin@vcb.com.vn"
+    management:
+      ip: 172.16.184.54
+  - name: FPT-SW
+    host: 172.16.184.50
+    username: admin
+    password: cisco123
+    type: cisco_ios
+    port: 22
+    ip_default_gateway: 222.222.222.1
+    interfaces:
+      - e0/2:
+          switchport_mode: access
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+      - e0/1:
+          switchport_mode: access
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+    management:
+      ip: 172.16.184.50
+  - name: OFFICE-ACC1
+    host: 172.16.184.52
+    username: admin
+    password: cisco123
+    type: cisco_ios
+    port: 22
+    ip_default_gateway: 172.16.190.1
+    vlans:
+      - 10: Private_server
+      - 110: IT
+      - 120: ACC
+      - 150: Guest
+      - 190: Management
+
+    interfaces-range:
+      - e0/0-1:
+          channel-group: 1
+          channel-group-mode: active
+    interfaces:
+      - Vlan190:
+          ip: 172.16.190.4
+          netmask: 255.255.255.0
+
+      - e0/2:
+          switchport_mode: access
+          switchport_access_vlan: 150
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+
+      - e0/3:
+          switchport_mode: access
+          switchport_access_vlan: 110
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+
+      - Po1:
+          description: "to HN-OFFICE"
+          switchport_mode: trunk
+
+    ntp:
+      enabled: true
+      servers:
+        - 172.16.184.128
+
+    syslog:
+      enabled: true
+      servers:
+        - 172.16.184.128
+      level: informational
+
+    tftp:
+      server: 172.16.184.128
+      backup_config: true
+      restore_config: false
+    snmp:
+      enabled: true
+      community: "netlab-ro"
+      permission: RO # hoặc RW
+      location: "VCB_HANOI"
+      contact: "admin@vcb.com.vn"
+
+    management:
+      ip: 172.16.184.52
+  - name: OFFICE-ACC2
+    host: 172.16.184.53
+    username: admin
+    password: cisco123
+    type: cisco_ios
+    port: 22
+    ip_default_gateway: 172.16.190.1
+    vlans:
+      - 10: Private_server
+      - 110: IT
+      - 120: ACC
+      - 150: Guest
+      - 190: Management
+
+    management:
+      ip: 172.16.184.53
+    interfaces-range:
+      - e0/0-1:
+          channel-group: 1
+          channel-group-mode: active
+
+    interfaces:
+      - Vlan190:
+          ip: 172.16.190.5
+          netmask: 255.255.255.0
+
+      - e0/2:
+          switchport_mode: access
+          switchport_access_vlan: 120
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+
+      - Po1:
+          description: "to HN-OFFICE"
+          switchport_mode: trunk
+          shutdown: false
+    ntp:
+      enabled: true
+      servers:
+        - 172.16.184.128
+
+    syslog:
+      enabled: true
+      servers:
+        - 172.16.184.128
+      level: informational
+
+    tftp:
+      server: 172.16.184.128
+      backup_config: true
+      restore_config: false
+    snmp:
+      enabled: true
+      community: "netlab-ro"
+      permission: RO # hoặc RW
+      location: "VCB_HANOI"
+      contact: "admin@vcb.com.vn"
+  - name: HN-OFFICE
+    host: 172.16.184.55
+    username: admin
+    password: cisco123
+    type: L3_switch
+    port: 22
+    vlans:
+      - 10: Private_server
+      - 110: IT
+      - 120: ACC
+      - 150: Guest
+      - 190: Management
+    spanning-tree_root_primary: true
+    interfaces-range:
+      - e0/1-2:
+          channel-group: 1
+          channel-group-mode: active
+      - e1/0-1:
+          channel-group: 2
+          channel-group-mode: active
+    routed_interfaces:
+      - e0/0:
+          ip: 10.0.255.2
+          netmask: 255.255.255.252
+          mode: routed
+      - e1/2:
+          ip: 10.0.255.9
+          netmask: 255.255.255.252
+          mode: routed
+    interfaces:
+      - vlan110:
+          ip: 172.16.110.1
+          netmask: 255.255.255.0
+          mode: svi
+      - vlan120:
+          ip: 172.16.120.1
+          netmask: 255.255.255.0
+          mode: svi
+      - vlan150:
+          ip: 172.16.150.1
+          netmask: 255.255.255.0
+          mode: svi
+      - vlan190:
+          ip: 172.16.190.1
+          netmask: 255.255.255.0
+          mode: svi
+      - Po1:
+          switchport_mode: trunk
+          shutdown: false
+      - Po2:
+          switchport_mode: trunk
+          shutdown: false
+    ip_routing:
+      enabled: true
+      ospf:
+        enabled: true
+        process_id: 1
+        networks:
+          - network: 10.0.255.0
+            wildcard: 0.0.0.3
+            area: 0
+          - network: 10.0.255.8
+            wildcard: 0.0.0.3
+            area: 0
+          - network: 172.16.110.0
+            wildcard: 0.0.0.255
+            area: 0
+          - network: 172.16.120.0
+            wildcard: 0.0.0.255
+            area: 0
+          - network: 172.16.150.0
+            wildcard: 0.0.0.255
+            area: 0
+          - network: 172.16.190.0
+            wildcard: 0.0.0.255
+            area: 0
+        default-information_originate: true
+    ntp:
+      enabled: true
+      servers:
+        - 172.16.184.128
+
+    syslog:
+      enabled: true
+      servers:
+        - 172.16.184.128
+      level: informational
+
+    tftp:
+      server: 172.16.184.128
+      backup_config: true
+      restore_config: false
+    snmp:
+      enabled: true
+      community: "netlab-ro"
+      permission: RO # hoặc RW
+      location: "VCB_HANOI"
+      contact: "admin@vcb.com.vn"
+    management:
+      ip: 172.16.184.55
+  - name: HN-DATACENTER
+    host: 172.16.184.56
+    username: admin
+    password: cisco123
+    type: L3_switch
+    port: 22
+    vlans:
+      - 10: Private_server
+      - 110: IT
+      - 120: ACC
+      - 150: Guest
+      - 190: Management
+
+    routed_interfaces:
+      - e0/0:
+          ip: 10.0.255.6
+          netmask: 255.255.255.252
+          mode: routed
+          shutdown: false
+      - e1/2:
+          ip: 10.0.255.10
+          netmask: 255.255.255.252
+          mode: routed
+          shutdown: false
+    interfaces:
+      - vlan10:
+          ip: 172.16.10.1
+          netmask: 255.255.255.0
+      - e0/1:
+          switchport_mode: access
+          switchport_access_vlan: 10
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+          shutdown: false
+      - e0/2:
+          switchport_mode: access
+          switchport_access_vlan: 10
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+          shutdown: false
+      - e0/3:
+          switchport_mode: access
+          switchport_access_vlan: 10
+          spanning-tree portfast: true
+          spanning-tree bpduguard: enable
+          shutdown: false
+    ip_routing:
+      enabled: true
+      static:
+        - destination: 172.16.210.0
+          netmask: 255.255.255.0
+          next_hop: 10.0.255.5
+        - destination: 172.16.220.0
+          netmask: 255.255.255.0
+          next_hop: 10.0.255.5
+        - destination: 172.16.250.0
+          netmask: 255.255.255.0
+          next_hop: 10.0.255.5
+      ospf:
+        enabled: true
+        process_id: 1
+        networks:
+          - network: 10.0.255.4
+            wildcard: 0.0.0.3
+            area: 0
+          - network: 10.0.255.8
+            wildcard: 0.0.0.3
+            area: 0
+          - network: 172.16.10.0
+            wildcard: 0.0.0.255
+            area: 0
+        default-information_originate: true
+    acls:
+      - name: ACL_4_DataCenter
+        type: standard
+        entries:
+          - sequence: 10
+            action: deny
+            source: 172.16.150.0
+            wildcard: 0.0.0.255
+          - sequence: 20
+            action: permit
+            source: any
+      #- name: SSH_only # phan nay cho co: dont care
+      #type: extended
+      #entries:
+      #   - sequence: 10
+      #    action: permit
+      #   protocol: 22
+      #  source: 172.16.110.0
+      # wildcard: 0.0.0.255
+      #destination: 172.16.184.56
+      #- sequence:
+      #action: permit
+      #protocol: 22
+      #source: 172.16.210.0
+      #wildcard: 0.0.0.255
+      #destination: 172.16.184.56
+    interfaces_acls:
+      - interface: e0/0
+        direction: in
+        acl: ACL_4_DataCenter
+      - interface: e1/2
+        direction: in
+        acl: ACL_4_DataCenter
+
+    ntp:
+      enabled: true
+      servers:
+        - 172.16.184.128
+
+    syslog:
+      enabled: true
+      servers:
+        - 172.16.184.128
+      level: informational
+
+    tftp:
+      server: 172.16.184.128
+      backup_config: true
+      restore_config: false
+    snmp:
+      enabled: true
+      community: "netlab-ro"
+      permission: RO # hoặc RW
+      location: "VCB_HANOI"
+      contact: "admin@vcb.com.vn"
+
+    management:
+      ip: 172.16.184.56

@@ -1,0 +1,8 @@
+switches:
+  platform: cisco_ios
+  data:
+    role: switch
+routers:
+  platform: cisco_ios
+  data:
+    role: router

@@ -1,0 +1,11 @@
+- targets: ["172.16.184.12"]
+  labels: { device: HN-GW, site: HN, role: router }
+- targets: ["172.16.184.55"]
+  labels: { device: HN-OFFICE, site: HN, role: l3-switch }
+- targets: ["172.16.184.56"]
+  labels: { device: HN-DATACENTER, site: HN, role: l3-switch }
+#Switch L2 (them khi da bat SNMP):
+- targets: ["172.16.184.52"]
+  labels: { device: OFFICE-ACC1, site: HN, role: l2-switch }
+- targets: ["172.16.184.53"]
+  labels: { device: OFFICE-ACC2, site: HN, role: l2-switch }

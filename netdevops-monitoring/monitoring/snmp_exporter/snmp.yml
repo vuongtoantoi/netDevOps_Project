@@ -1,0 +1,116 @@
+auths:
+  lab_v2:
+    community: netlab-ro # phai trung voi community string tren thiet bi
+    version: 2
+
+modules:
+  cisco_lab:
+    get:
+      - 1.3.6.1.2.1.1.3.0 # sysUpTime
+    walk:
+      - 1.3.6.1.2.1.2.2.1.2 # ifDescr
+      - 1.3.6.1.2.1.2.2.1.7 # ifAdminStatus
+      - 1.3.6.1.2.1.2.2.1.8 # ifOperStatus
+      - 1.3.6.1.2.1.2.2.1.14 # ifInErrors
+      - 1.3.6.1.2.1.2.2.1.20 # ifOutErrors
+      - 1.3.6.1.2.1.31.1.1.1.6 # ifHCInOctets
+      - 1.3.6.1.2.1.31.1.1.1.10 # ifHCOutOctets
+      - 1.3.6.1.4.1.9.9.109.1.1.1.1.6 # cpmCPUTotal5secRev
+      - 1.3.6.1.4.1.9.9.109.1.1.1.1.7 # cpmCPUTotal1minRev
+      - 1.3.6.1.4.1.9.9.109.1.1.1.1.8 # cpmCPUTotal5minRev
+      - 1.3.6.1.4.1.9.9.48.1.1.1.2 # ciscoMemoryPoolName
+      - 1.3.6.1.4.1.9.9.48.1.1.1.5 # ciscoMemoryPoolUsed
+      - 1.3.6.1.4.1.9.9.48.1.1.1.6 # ciscoMemoryPoolFree
+    metrics:
+      - name: sysUpTime
+        oid: 1.3.6.1.2.1.1.3
+        type: gauge
+        help: Thoi gian chay cua thiet bi, don vi 1/100 giay
+
+      - name: ifAdminStatus
+        oid: 1.3.6.1.2.1.2.2.1.7
+        type: gauge
+        help: Trang thai quan tri cua cong (1=up, 2=down, 3=testing)
+        indexes: &if_idx
+          - labelname: ifIndex
+            type: gauge
+        lookups: &if_lookup
+          - labels: [ifIndex]
+            labelname: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
+
+      - name: ifOperStatus
+        oid: 1.3.6.1.2.1.2.2.1.8
+        type: gauge
+        help: Trang thai hoat dong cua cong (1=up, 2=down, 3=testing, 5=dormant, 7=lowerLayerDown)
+        indexes: *if_idx
+        lookups: *if_lookup
+
+      - name: ifInErrors
+        oid: 1.3.6.1.2.1.2.2.1.14
+        type: counter
+        help: So goi loi nhan vao
+        indexes: *if_idx
+        lookups: *if_lookup
+
+      - name: ifOutErrors
+        oid: 1.3.6.1.2.1.2.2.1.20
+        type: counter
+        help: So goi loi gui ra
+        indexes: *if_idx
+        lookups: *if_lookup
+
+      - name: ifHCInOctets
+        oid: 1.3.6.1.2.1.31.1.1.1.6
+        type: counter
+        help: Tong so byte nhan vao (64-bit)
+        indexes: *if_idx
+        lookups: *if_lookup
+
+      - name: ifHCOutOctets
+        oid: 1.3.6.1.2.1.31.1.1.1.10
+        type: counter
+        help: Tong so byte gui ra (64-bit)
+        indexes: *if_idx
+        lookups: *if_lookup
+
+      - name: cpmCPUTotal5secRev
+        oid: 1.3.6.1.4.1.9.9.109.1.1.1.1.6
+        type: gauge
+        help: CPU trung binh 5 giay (%)
+        indexes: &cpu_idx
+          - labelname: cpmCPUTotalIndex
+            type: gauge
+
+      - name: cpmCPUTotal1minRev
+        oid: 1.3.6.1.4.1.9.9.109.1.1.1.1.7
+        type: gauge
+        help: CPU trung binh 1 phut (%)
+        indexes: *cpu_idx
+
+      - name: cpmCPUTotal5minRev
+        oid: 1.3.6.1.4.1.9.9.109.1.1.1.1.8
+        type: gauge
+        help: CPU trung binh 5 phut (%)
+        indexes: *cpu_idx
+
+      - name: ciscoMemoryPoolUsed
+        oid: 1.3.6.1.4.1.9.9.48.1.1.1.5
+        type: gauge
+        help: Bo nho da dung (byte)
+        indexes: &mem_idx
+          - labelname: ciscoMemoryPoolType
+            type: gauge
+        lookups: &mem_lookup
+          - labels: [ciscoMemoryPoolType]
+            labelname: ciscoMemoryPoolName
+            oid: 1.3.6.1.4.1.9.9.48.1.1.1.2
+            type: DisplayString
+
+      - name: ciscoMemoryPoolFree
+        oid: 1.3.6.1.4.1.9.9.48.1.1.1.6
+        type: gauge
+        help: Bo nho con trong (byte)
+        indexes: *mem_idx
+        lookups: *mem_lookup

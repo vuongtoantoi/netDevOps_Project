@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: snmp
+    scrape_timeout: 25s
+    metrics_path: /snmp
+    params:
+      module: [cisco_lab]
+      auth: [lab_v2]
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/snmp_targets.yml
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116

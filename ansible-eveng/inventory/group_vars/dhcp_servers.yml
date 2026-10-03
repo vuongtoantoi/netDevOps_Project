@@ -12,27 +12,27 @@ dhcp_ntp_servers:
   - "{{ hostvars['ntp-syslog-tftp'].lan_ip }}"
 
 dhcp_subnets:
-  - name: VCB-DC (subnet cua chinh DHCP server, khong cap phat)
-    network: 10.10.10.0
+  - name: VCB-DC
+    network: 172.16.10.0
     netmask: 255.255.255.0
   - name: HN-OFFICE-IT
-    network: 10.10.20.0
+    network: 172.16.110.0
     netmask: 255.255.255.0
-    gateway: 10.10.20.1
-    range_start: 10.10.20.100
-    range_end: 10.10.20.200
+    gateway: 172.16.110.1
+    range_start: 172.16.110.10
+    range_end: 172.16.110.209
   - name: HN-OFFICE-ACC
-    network: 10.10.21.0
+    network: 172.16.120.0
     netmask: 255.255.255.0
-    gateway: 10.10.21.1
-    range_start: 10.10.21.100
-    range_end: 10.10.21.200
+    gateway: 172.16.120.1
+    range_start: 172.16.120.10
+    range_end: 172.16.120.209
   - name: HN-OFFICE-GUEST
-    network: 10.10.22.0
+    network: 172.16.150.0
     netmask: 255.255.255.0
-    gateway: 10.10.22.1
-    range_start: 10.10.22.100
-    range_end: 10.10.22.200
+    gateway: 172.16.150.1
+    range_start: 172.16.150.10
+    range_end: 172.16.150.209
 
 dhcp_reservations: []
 #  - { name: it-hn, mac: "aa:bb:cc:dd:ee:01", ip: 10.10.20.50 }

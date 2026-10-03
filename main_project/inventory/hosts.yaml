@@ -2,55 +2,55 @@ FPT_Telecom:
   hostname: 172.16.184.10
   port: 22
   groups:
-  - routers
+    - routers
   data:
     enable_password: cisco123
 HCM_GW:
   hostname: 172.16.184.11
   port: 22
   groups:
-  - routers
+    - routers
   data:
     enable_password: cisco123
 HN_GW:
   hostname: 172.16.184.12
   port: 22
   groups:
-  - routers
+    - routers
   data:
     enable_password: cisco123
 HCM-SW:
   hostname: 172.16.184.51
   port: 22
   groups:
-  - switches
+    - switches
 HN-DMZ:
   hostname: 172.16.184.54
   port: 22
   groups:
-  - switches
+    - switches
 FPT-SW:
   hostname: 172.16.184.50
   port: 22
   groups:
-  - switches
+    - switches
 OFFICE-ACC1:
   hostname: 172.16.184.52
   port: 22
   groups:
-  - switches
+    - switches
 OFFICE-ACC2:
   hostname: 172.16.184.53
   port: 22
   groups:
-  - switches
+    - switches
 HN-OFFICE:
   hostname: 172.16.184.55
   port: 22
   groups:
-  - switches
+    - switches
 HN-DATACENTER:
   hostname: 172.16.184.56
   port: 22
   groups:
-  - switches
+    - switches

@@ -1,4 +1,3 @@
-
 import argparse
 import os
 
@@ -6,11 +5,6 @@ import pexpect
 
 import config_builder as cb
 
-
-# Cac option ssh de co the "noi chuyen" duoc voi IOS image cu (xem giai thich
-# o dau file). Neu thiet bi cua ban dung crypto moi hon, bot bot cac option
-# nay di cung duoc - de nguyen khong hai gi (chi la "cho phep them", khong
-# bat buoc dung).
 SSH_LEGACY_OPTS = (
     "-o StrictHostKeyChecking=no "
     "-o UserKnownHostsFile=/dev/null "
@@ -22,8 +16,8 @@ SSH_LEGACY_OPTS = (
 
 LOGIN_TIMEOUT = 20
 CMD_TIMEOUT = 15
-PROMPT = r"[>#]\s*$"       # user-exec (>) hoac privileged/config (#)
-PRIV_PROMPT = r"#\s*$"     # chi privileged/config mode (moi che do config deu ket thuc bang #)
+PROMPT = r"[>#]\s*$"       
+PRIV_PROMPT = r"#\s*$"     
 
 
 def connect(device, log_dir):
@@ -66,7 +60,7 @@ def connect(device, log_dir):
     if i in (2, 3):
         raise RuntimeError("timeout/EOF sau khi gui password dang nhap")
 
-    # Neu dang o user-exec (dau nhac ket thuc bang '>'), can vao enable mode.
+    
     if child.after.strip().endswith(">"):
         child.sendline("enable")
         i = child.expect([r"(?i)password:", PRIV_PROMPT, pexpect.TIMEOUT, pexpect.EOF])
@@ -78,7 +72,7 @@ def connect(device, log_dir):
         elif i != 1:
             raise RuntimeError("timeout/EOF khi vao enable mode")
 
-    child.sendline("terminal length 0")   # tat phan trang --More--
+    child.sendline("terminal length 0")   
     child.expect(PRIV_PROMPT)
     return child
 
@@ -112,7 +106,7 @@ def save_and_backup(child, device):
 
     for line in cb.build_backup_commands(device):
         child.sendline(line)
-        for _ in range(4):  # IOS thuong hoi 2 cau (dia chi, ten file) truoc khi chay
+        for _ in range(4):  
             idx = child.expect(
                 [
                     r"(?i)destination filename",
@@ -123,7 +117,7 @@ def save_and_backup(child, device):
                 timeout=30,
             )
             if idx in (0, 1):
-                child.sendline("")  # Enter -> dung gia tri IOS goi y mac dinh
+                child.sendline("")  
                 continue
             break
 
@@ -156,7 +150,7 @@ def deploy_one(device, log_dir, dry_run=False):
             return False
         print(f"  OK - da day {len(commands)} dong lenh. Log: {log_dir}/{name}.log")
         return True
-    except Exception as e:  # noqa: BLE001 - muon bat het loi ket noi/timeout de qua thiet bi tiep theo
+    except Exception as e:  
         print(f"  !! LOI KHI DAY CAU HINH: {type(e).__name__}: {e}")
         print(f"     (xem chi tiet trong {log_dir}/{name}.log)")
         return False

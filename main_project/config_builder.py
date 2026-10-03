@@ -1,36 +1,16 @@
 import re
 import sys
 
-# ---------------------------------------------------------------------------
-# Cac loi da biet trong file YAML hien tai (tinh den lan review nay) - dung
-# de sinh thong bao loi cu the, thay vi de chuong trinh crash mo ho.
-# ---------------------------------------------------------------------------
-
 SYSLOG_LEVEL_ALIASES = {
-    "info": "informational",  # file switches dung "info", IOS can "informational"
+    "info": "informational",  
 }
 
-
 class DeviceConfigError(ValueError):
-    """Loi du lieu YAML cua 1 thiet bi cu the - in ro ten thiet bi + nguyen nhan."""
-
     def __init__(self, device_name, message):
         super().__init__(f"[{device_name}] {message}")
         self.device_name = device_name
 
-
-# ---------------------------------------------------------------------------
-# Chuan hoa du lieu (giai quyet 2 kieu schema khac nhau giua 2 file)
-# ---------------------------------------------------------------------------
-
 def normalize_vlans(device):
-    """Tra ve dict {vlan_id(int): vlan_name(str)}.
-
-    File switches dung dang list cac dict 1-phan-tu: [{210: 'IT'}, ...].
-    Neu con thiet bi nao van bi thieu dau cach sau '-' (vd HN-DATACENTER),
-    YAML se parse vlans thanh 1 dict voi key la SO AM -> bao loi ro rang
-    thay vi am tham dung sai VLAN ID.
-    """
     name = device.get("name", "?")
     raw = device.get("vlans")
     if raw is None:
@@ -44,7 +24,7 @@ def normalize_vlans(device):
                 "sau dau '-' trong YAML (phai la '- 10: Ten' chu khong phai "
                 "'-10: Ten'). Sua YAML truoc khi chay tiep.",
             )
-        # truong hop hiem: ai do da sua thanh dict phang dung nghia -> chap nhan
+       
         return {int(k): v for k, v in raw.items()}
 
     if isinstance(raw, list):
@@ -60,23 +40,6 @@ def normalize_vlans(device):
 
 
 def normalize_interfaces(device):
-    """Chuan hoa 'interfaces' ve dict {ten_interface: {thuoc_tinh...}}.
-
-    Ho tro ca 2 dang da tung thay trong file cua ban:
-      - dang list 1-phan-tu (hien la dang chuan, dung cho ca 10 thiet bi sau
-        khi gop file):      interfaces: [{e0/1: {...}}, {e0/2: {...}}]
-      - dang dict phang (dang cu, truoc khi gop file routers):
-                            interfaces: {e0/1: {...}, e0/2: {...}}
-
-    Phat hien va bao loi ro rang cho 2 kieu sai hay gap:
-      1) thut le sai lam "roi" thuoc tinh con (key interface -> None, cac
-         thuoc tinh nam ngang cap thay vi long vao trong) - dang gap o
-         FPT_Telecom / HCM_GW / HN_GW sau khi chuyen tu dict-style sang
-         list-style.
-      2) 1 khoa nao do trong 'interfaces' lai co gia tri la list thay vi dict
-         thuoc tinh - dau hieu 1 khoi cau hinh khac (vd 'tunnel:') bi thut le
-         nham vao ben trong 'interfaces' (loi tung gap o HCM_GW ban dau).
-    """
     name = device.get("name", "?")
     raw = device.get("interfaces")
     if raw is None:
@@ -103,7 +66,6 @@ def normalize_interfaces(device):
         for item in raw:
             if not isinstance(item, dict) or len(item) < 1:
                 raise DeviceConfigError(name, f"phan tu 'interfaces' khong hop le: {item!r}")
-            # Dang dung: {"e0/1": {props...}}  (1 key, value la dict)
             if len(item) == 1:
                 (iface, props), = item.items()
                 if props is None:
@@ -117,7 +79,6 @@ def normalize_interfaces(device):
                     raise DeviceConfigError(name, f"interface '{iface}' co gia tri khong hop le: {props!r}")
                 out[iface] = props
                 continue
-            # Dang bi flatten: {"e1/0": None, "description": "...", "ip": "...", ...}
             none_keys = [k for k, v in item.items() if v is None]
             if none_keys:
                 iface = none_keys[0]
@@ -135,15 +96,12 @@ def normalize_interfaces(device):
 
     raise DeviceConfigError(name, f"'interfaces' phai la list hoac dict, dang gap {type(raw)}")
 
-
 def as_list(value):
-    """Chuan hoa 1 gia tri co the la None / 1 string / 1 list -> list."""
     if value is None:
         return []
     if isinstance(value, list):
         return value
     return [value]
-
 
 def get_tftp_server(tftp_cfg):
     """File routers dung 'server' (so it), file switches dung 'servers'."""
@@ -153,7 +111,6 @@ def get_tftp_server(tftp_cfg):
 
 
 def parse_interface_range(range_key):
-    """'e0/0-1' -> ('e0/0', '1')  =>  IOS: 'interface range e0/0 - 1'"""
     m = re.match(r"^([A-Za-z]+\d+/)(\d+)-(\d+)$", range_key)
     if not m:
         raise ValueError(f"Khong parse duoc interface-range: {range_key!r}")
@@ -164,15 +121,7 @@ def parse_interface_range(range_key):
 def is_svi_name(iface_name):
     return re.match(r"^[Vv]lan\d+$", iface_name) is not None
 
-
-# ---------------------------------------------------------------------------
-# ACL helpers (dung chung cho ca 2 file)
-# ---------------------------------------------------------------------------
-
 def _match_clause(addr, wildcard):
-    """Quy uoc: khong co dia chi hoac addr=='any' -> 'any'.
-    Co wildcard -> '<addr> <wildcard>'. Khong co wildcard (chi 1 host) -> 'host <addr>'.
-    """
     if addr is None or str(addr).lower() == "any":
         return "any"
     if wildcard:
@@ -232,11 +181,6 @@ def build_interface_acl_bindings(bindings):
         lines.append(f" ip access-group {b['acl']} {b['direction']}")
         lines.append("exit")
     return lines
-
-
-# ---------------------------------------------------------------------------
-# SWITCHES (devices_continue.yml)
-# ---------------------------------------------------------------------------
 
 def build_switch_commands(device):
     name = device["name"]
@@ -325,18 +269,11 @@ def _flatten_ranges(raw):
         (k, v), = item.items()
         yield k, v
 
-
-# ---------------------------------------------------------------------------
-# ROUTERS (devices.yaml)
-# ---------------------------------------------------------------------------
-
 def build_router_commands(device):
     name = device["name"]
     lines = [f"hostname {name}"]
 
     ifaces = normalize_interfaces(device)
-    # Cha (vd fa0/0) truoc, sub-interface dot1Q (fa0/0.210) sau, de switch/router
-    # da co interface cha o dang "up" truoc khi tao sub-interface.
     for iface in sorted(ifaces, key=lambda x: ("." in x, x)):
         props = ifaces[iface]
         lines.append(f"interface {iface}")
@@ -399,12 +336,10 @@ def build_router_commands(device):
                 glob = rule.get("inside_global", rule.get("insideGlobal"))
                 iface = outside_ip_to_iface.get(glob)
                 if iface:
-                    # insideGlobal trung voi IP cua chinh interface outside -> dung "interface X"
                     nat_rule_lines.append(
                         f"ip nat inside source list {rule['acl']} interface {iface}{overload}"
                     )
                 else:
-                    # Khong khop interface nao -> tao pool 1-dia-chi tam de PAT
                     tmp_pool = f"{rule['acl']}_PAT_POOL"
                     ip_ = glob
                     nat_pool_lines.append(
@@ -431,8 +366,6 @@ def build_router_commands(device):
             if pool.get("dns_server"):
                 pool_lines.append(f" dns-server {pool['dns_server']}")
             pool_lines.append("exit")
-        # excluded-address phai co truoc khi pool cap phat, nhung khong can dung
-        # o dau toan bo lenh (chi can truoc cac 'ip dhcp pool' la du).
         lines += excluded_lines + pool_lines
 
     ntp = device.get("ntp", {})
@@ -451,17 +384,7 @@ def build_router_commands(device):
     lines += build_snmp_lines(device.get("snmp"))
     return lines
 
-
-# ---------------------------------------------------------------------------
-# Dispatch chung: tu dong nhan dien file routers hay switches theo cac khoa
-# dac trung, KHONG dua vao ten file (de robust hon neu sau nay gop 1 file).
-# ---------------------------------------------------------------------------
-
 def is_router_schema(device):
-    # File routers dung 'protocol' (vd ssh); file switches dung 'type' (cisco_ios/
-    # L3_switch) va khong co 'protocol'. Truoc day con phan biet them qua kieu du
-    # lieu cua 'interfaces' (dict vs list), nhung tu khi 2 file duoc gop lam 1 va
-    # dung chung dang list, chi con 'protocol' la dau hieu dang tin cay.
     return "protocol" in device
 
 
@@ -472,9 +395,6 @@ def build_commands_for_device(device):
 
 
 def build_backup_commands(device):
-    """Lenh EXEC-mode (khong phai config-mode) de backup running-config qua TFTP.
-    Goi RIENG, sau khi da thoat khoi che do config, khong tron vao list lenh config.
-    """
     tftp = device.get("tftp")
     server = get_tftp_server(tftp)
     if not tftp or not server or not tftp.get("backup_config"):
@@ -483,11 +403,6 @@ def build_backup_commands(device):
         return []
     filename = f"{device['name']}-running.cfg"
     return [f"copy running-config tftp://{server}/{filename}"]
-
-
-# ---------------------------------------------------------------------------
-# CLI: doc file(s) YAML, in ra lenh sinh duoc (dry-run) de kiem tra truoc
-# ---------------------------------------------------------------------------
 
 def load_all_devices(paths):
     import yaml
@@ -527,7 +442,7 @@ def main():
         except DeviceConfigError as e:
             print(f"!! LOI DU LIEU: {e}")
             failed.append(name)
-        except Exception as e:  # noqa: BLE001 - day la tool dry-run, muon thay het loi
+        except Exception as e:
             print(f"!! LOI KHONG XAC DINH: {type(e).__name__}: {e}")
             failed.append(name)
 

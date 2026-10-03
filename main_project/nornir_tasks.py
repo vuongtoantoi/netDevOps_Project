@@ -35,5 +35,5 @@ def push_config_pexpect(task, device_lookup, dry_run=False, log_dir="logs"):
                 result=f"Da day nhung {len(rejected)} lenh bi IOS tu choi: {rejected}",
             )
         return Result(host=task.host, result=f"OK - da day {len(commands)} dong lenh")
-    except Exception as e:  # noqa: BLE001 - muon Nornir ghi nhan LOI thay vi lam sap ca batch
+    except Exception as e:  
         return Result(host=task.host, failed=True, result=f"{type(e).__name__}: {e}")

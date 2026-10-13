@@ -3,5 +3,5 @@ This project aims to address the problem of network engineers in configuring dev
 Like its name: "NetDevOps", with using my CCNA knowledges and some technologies like "pexpect or netmiko( paramiko)", "nornir", "script python", other frameworks, I fully completed this project to level up my skills in networking environment.  
 In addition to, I also intergrated DevOps tools like "Docker", "Prometheus/Grafana" to make easy in monitoring the system.  
 I am very happy ìf this project can help you in some scenarios.  
-You need check master branch to see my foldes of this project.  
+You need check MASTER branch to see my foldes of this project.  
 Remember to install frameworks or libraries and choose the interpreter closely to run this project correctly. :)))

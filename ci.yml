@@ -1,7 +1,5 @@
 name: CI
 
-# CI chạy HOÀN TOÀN OFFLINE trên máy ảo của GitHub (không chạm vào lab) nên an toàn với repo public,
-# kể cả khi người lạ gửi Pull Request từ fork. TUYỆT ĐỐI không dùng self-hosted runner trong file này.
 on:
   pull_request:
     branches: [master]
@@ -19,7 +17,6 @@ concurrency:
 jobs:
   checks:
     name: Lint, test và kiểm tra YAML
-    # Ghim phiên bản OS thay vì 'ubuntu-latest' để tránh bị đổi bất ngờ khi GitHub nâng nhãn latest.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

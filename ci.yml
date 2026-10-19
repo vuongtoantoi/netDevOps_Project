@@ -1,0 +1,56 @@
+name: CI
+
+# CI chạy HOÀN TOÀN OFFLINE trên máy ảo của GitHub (không chạm vào lab) nên an toàn với repo public,
+# kể cả khi người lạ gửi Pull Request từ fork. TUYỆT ĐỐI không dùng self-hosted runner trong file này.
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, test và kiểm tra YAML
+    # Ghim phiên bản OS thay vì 'ubuntu-latest' để tránh bị đổi bất ngờ khi GitHub nâng nhãn latest.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Cài Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Cài thư viện
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: yamllint
+        run: yamllint -c .yamllint.yml .
+
+      - name: flake8
+        run: flake8
+
+      - name: Unit test (thiết bị Cisco giả, không cần lab)
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate devices.yaml (schema, IP, tham chiếu, an toàn management, không có credential)
+        run: python main_project/validate.py main_project/devices.yaml
+
+      - name: Dry-run (sinh lệnh cho mọi thiết bị, không kết nối)
+        run: python main_project/deploy_pexpect.py main_project/devices.yaml --dry-run

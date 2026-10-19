@@ -1,0 +1,102 @@
+name: CD
+
+# Workflow này chạy trên self-hosted runner đặt trong mạng lab nên phải khoá chặt vì repo là PUBLIC:
+#  * CHỈ kích hoạt bởi 'push' vào master hoặc bấm chạy tay (workflow_dispatch) - cả hai đều cần quyền ghi repo.
+#  * TUYỆT ĐỐI KHÔNG thêm 'pull_request', 'pull_request_target', 'issue_comment'... vào 'on:' (test_repo_hygiene sẽ bắt).
+#  * Credential nằm trong GitHub Environment 'lab' (có người duyệt), không nằm trong repo.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "main_project/**"
+      - "requirements.txt"
+      - ".github/workflows/cd.yml"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Chỉ deploy các thiết bị này (cách nhau bằng dấu cách, vd: HCM-SW HN-DMZ). Để trống = tất cả"
+        required: false
+        default: ""
+      dry_run:
+        description: "Chỉ kiểm tra offline + preflight, KHÔNG đẩy cấu hình"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Chỉ một lần deploy tại một thời điểm; lần sau đợi lần trước xong (không huỷ giữa chừng để tránh cấu hình dở dang).
+concurrency:
+  group: netlab-deploy
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    name: Deploy lên lab EVE-NG
+    if: ${{ !github.event.repository.fork }}
+    runs-on: [self-hosted, linux, netlab]
+    timeout-minutes: 45
+    environment: lab              # Environment 'lab': secrets + (khuyến nghị) Required reviewers = chính bạn
+    env:
+      NETLAB_USERNAME: ${{ secrets.NETLAB_USERNAME }}
+      NETLAB_PASSWORD: ${{ secrets.NETLAB_PASSWORD }}
+      NETLAB_ENABLE_PASSWORD: ${{ secrets.NETLAB_ENABLE_PASSWORD }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Đọc và kiểm tra tham số
+        env:
+          INPUT_ONLY: ${{ inputs.only }}
+        run: |
+          # Chỉ cho phép tên thiết bị (chữ, số, _, -, khoảng trắng) để không thể chèn lệnh shell.
+          if [[ ! "$INPUT_ONLY" =~ ^[A-Za-z0-9_\ -]*$ ]]; then
+            echo "::error::Danh sách thiết bị chứa ký tự không hợp lệ"
+            exit 1
+          fi
+          if [[ -n "${INPUT_ONLY// /}" ]]; then
+            echo "ONLY_ARGS=--only $INPUT_ONLY" >> "$GITHUB_ENV"
+          else
+            echo "ONLY_ARGS=" >> "$GITHUB_ENV"
+          fi
+          {
+            echo "### Deploy commit \`${GITHUB_SHA::7}\`"
+            echo "Kích hoạt bởi: \`${GITHUB_EVENT_NAME}\` - người chạy: \`${GITHUB_ACTOR}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tạo môi trường Python (venv)
+        run: |
+          python3 --version
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet -r requirements.txt
+
+      - name: Kiểm tra offline (unit test + validate)
+        run: |
+          .venv/bin/python -m unittest discover -s tests
+          .venv/bin/python main_project/validate.py main_project/devices.yaml
+
+      - name: Preflight - lab có sẵn sàng không?
+        run: .venv/bin/python main_project/preflight.py main_project/devices.yaml $ONLY_ARGS
+
+      - name: Backup running-config (lưu trên máy runner, không public)
+        if: ${{ !inputs.dry_run }}
+        run: .venv/bin/python main_project/backup.py main_project/devices.yaml $ONLY_ARGS
+
+      - name: Deploy cấu hình
+        if: ${{ !inputs.dry_run }}
+        run: .venv/bin/python main_project/deploy_pexpect.py main_project/devices.yaml --stop-on-error $ONLY_ARGS
+
+      - name: Verify - mạng có chạy đúng như YAML mô tả không?
+        if: ${{ !inputs.dry_run }}
+        run: .venv/bin/python main_project/verify.py main_project/devices.yaml $ONLY_ARGS
+
+      - name: Dọn log và venv (log chứa cấu hình thiết bị)
+        if: ${{ always() }}
+        run: rm -rf logs .venv

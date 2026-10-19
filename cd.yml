@@ -1,9 +1,5 @@
 name: CD
 
-# Workflow này chạy trên self-hosted runner đặt trong mạng lab nên phải khoá chặt vì repo là PUBLIC:
-#  * CHỈ kích hoạt bởi 'push' vào master hoặc bấm chạy tay (workflow_dispatch) - cả hai đều cần quyền ghi repo.
-#  * TUYỆT ĐỐI KHÔNG thêm 'pull_request', 'pull_request_target', 'issue_comment'... vào 'on:' (test_repo_hygiene sẽ bắt).
-#  * Credential nằm trong GitHub Environment 'lab' (có người duyệt), không nằm trong repo.
 on:
   push:
     branches: [master]
@@ -25,7 +21,6 @@ on:
 permissions:
   contents: read
 
-# Chỉ một lần deploy tại một thời điểm; lần sau đợi lần trước xong (không huỷ giữa chừng để tránh cấu hình dở dang).
 concurrency:
   group: netlab-deploy
   cancel-in-progress: false
@@ -40,7 +35,7 @@ jobs:
     if: ${{ !github.event.repository.fork }}
     runs-on: [self-hosted, linux, netlab]
     timeout-minutes: 45
-    environment: lab              # Environment 'lab': secrets + (khuyến nghị) Required reviewers = chính bạn
+    environment: lab           
     env:
       NETLAB_USERNAME: ${{ secrets.NETLAB_USERNAME }}
       NETLAB_PASSWORD: ${{ secrets.NETLAB_PASSWORD }}
